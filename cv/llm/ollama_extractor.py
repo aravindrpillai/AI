@@ -20,6 +20,10 @@ class OllamaExtractor(CVExtractor):
 
         data = json.loads(response)
 
+        print("OLLAMA---OP-START----")
+        print(response)
+        print("OLLAMA---OP-END-----")
+
         # Hard validation (same as OpenAI)
         CVExtractResult(**data)
         return data

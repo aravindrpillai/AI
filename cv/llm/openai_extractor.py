@@ -95,6 +95,9 @@ class OpenAIExtractor(CVExtractor):
 
         raw = self.get_output_text(resp)
         data = json.loads(raw)
+        print("OPENAI---OP-START----")
+        print(raw)
+        print("OPENAI---OP-END-----")
 
         CVExtractResult(**data)
         return data

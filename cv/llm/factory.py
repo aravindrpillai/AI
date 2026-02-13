@@ -5,10 +5,8 @@ from cv.llm.ollama_extractor import OllamaExtractor
 def get_extractor(llm):
     match(llm):
         case "ollama":
-            print("OLLAMA - EXTRACTOR")
             return OllamaExtractor(model = "qwen2.5:14b")
         case "openai": 
-            print("OPEN-AI - EXTRACTOR")
             return OpenAIExtractor()
         case _:
             raise Exception("Invalid model use either [ollama or openai]")
