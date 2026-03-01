@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import os, mimetypes, anthropic
 from ai.constants import MAX_TOKEN
-from typing import List, Optional, Dict, Any
 from aiengine.agents.base import AgentAbstract
+from typing import List, Optional, Dict, Any
 from aiengine.types import LocalFile, UploadedRef
+
+
+CLAUDE_SUPPORTED_IMAGES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+CLAUDE_SUPPORTED_DOCS   = {"application/pdf", "text/plain", "text/csv", "text/html", "text/xml"}
 
 
 class ClaudeAdapter(AgentAbstract):
@@ -48,40 +52,88 @@ class ClaudeAdapter(AgentAbstract):
         extra: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
 
-        payload_text = payload if isinstance(payload, str) else str(payload)
-        blocks: List[Dict[str, Any]] = [{"type": "text", "text": payload_text}]
+        conversation     = payload.get("conversation", [])
+        current_state    = payload.get("current_state", {})
+        extra_instruction = payload.get("instruction", "")
+
+        messages = []
+
+        # All turns except the last go in as plain role/content
+        for turn in conversation[:-1]:
+            messages.append({
+                "role":    turn["role"],
+                "content": turn["content"],
+            })
+
+        # Last user turn — attach files + state + instruction
+        last_turn = conversation[-1] if conversation else {"role": "user", "content": ""}
+
+        blocks: List[Dict[str, Any]] = [
+            {"type": "text", "text": last_turn["content"]},
+            {"type": "text", "text": f"\n\nCurrent FNOL state:\n{current_state}"},
+        ]
+
+        if extra_instruction:
+            blocks.append({"type": "text", "text": f"\n\n{extra_instruction}"})
+
+        unsupported_files: List[str] = []
 
         for u in (uploads or []):
             if u.provider != "claude":
                 continue
-            if u.mime_type.startswith("image/"):
+
+            mime = (u.mime_type or "").lower()
+
+            if mime in CLAUDE_SUPPORTED_IMAGES:
                 blocks.append({
                     "type": "image",
                     "source": {"type": "file", "file_id": u.file_id},
                 })
-            else:
+            elif mime in CLAUDE_SUPPORTED_DOCS:
                 blocks.append({
                     "type": "document",
                     "source": {"type": "file", "file_id": u.file_id},
                     "title": u.filename,
                 })
+            else:
+                unsupported_files.append(f"{u.filename} ({mime or 'unknown type'})")
+
+        if unsupported_files:
+            blocks.append({
+                "type": "text",
+                "text": (
+                    f"\n\nNote: The following files were uploaded but cannot be rendered inline: "
+                    f"{', '.join(unsupported_files)}. Acknowledge them in your analysis."
+                ),
+            })
+
+        messages.append({"role": "user", "content": blocks})
+
+        # ── Enforce JSON via system prompt injection ───────────────────────
+        # Prefill not supported on this model — append JSON reminder to system
+        json_enforcement = (
+            "\n\nCRITICAL INSTRUCTION: You MUST respond with valid JSON only. "
+            "No plain text. No markdown. No code fences. No preamble. "
+            "Your entire response must be a single valid JSON object starting with { and ending with }."
+        )
+        final_system = (system_prompt or "") + json_enforcement
 
         params: Dict[str, Any] = {
-            "model": model,
+            "model":      model,
             "max_tokens": MAX_TOKEN,
-            "messages": [{"role": "user", "content": blocks}],
-            "betas": ["files-api-2025-04-14"],  # required header for files API
+            "messages":   messages,
+            "betas":      ["files-api-2025-04-14"],
+            "system":     final_system,
         }
-        if system_prompt:
-            params["system"] = system_prompt
         if extra:
             params.update(extra)
 
         resp = self.client.beta.messages.create(**params)
 
-        text_parts: List[str] = []
-        for block in getattr(resp, "content", []) or []:
-            if getattr(block, "type", None) == "text":
-                text_parts.append(getattr(block, "text", ""))
+        text_parts = [
+            getattr(block, "text", "")
+            for block in (getattr(resp, "content", []) or [])
+            if getattr(block, "type", None) == "text"
+        ]
 
         return {"text": "\n".join(text_parts).strip(), "raw": resp}
