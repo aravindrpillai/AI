@@ -7,10 +7,13 @@ SECRET_KEY = 'django-insecure-dhc8#z+$%rxt7cu+fsk1^@n1__!%sfwbww_&_+#=#+83^hv0#g
 
 DEBUG = False
 
-ALLOWED_HOSTS = [
+ALLOWED_HOSTS = ["*"]
+'''
+[
     "aravindpillai.com", "ai-be.aravindpillai.com", 
     "localhost", "127.0.0.1"
 ]
+'''
 
 CORS_ALLOWED_ORIGINS = [
     "https://aravindpillai.com", "https://www.aravindpillai.com", 
