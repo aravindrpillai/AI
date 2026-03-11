@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from datetime import date
 import uuid, traceback
 from rest_framework import status
 from rest_framework.views import APIView
@@ -58,7 +58,7 @@ class ClaimsAPIView(APIView):
                     status=status.HTTP_200_OK
                 )
 
-            prompt = PromptReader.get("claimsprompt.txt")
+            prompt = PromptReader.get("claimsprompt.txt", variables={"__today__": date.today().isoformat()})
 
             # ── 1. Get or create conversation ──────────────────────────────
             if conv_id:

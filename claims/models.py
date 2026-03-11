@@ -18,12 +18,7 @@ class ClaimMessage(models.Model):
         ("assistant", "assistant"),
     )
 
-    conversation = models.ForeignKey(
-        ClaimConversation,
-        related_name="messages",
-        on_delete=models.CASCADE
-    )
-
+    conversation = models.ForeignKey(ClaimConversation, related_name="messages", on_delete=models.CASCADE)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     message = models.TextField(null=True, blank=True)
 

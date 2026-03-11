@@ -28,9 +28,12 @@ INTELLIGENT EXTRACTION RULES
 - Normalize values before asking
 - Never ask for information already provided
 - Infer where possible but confirm if there is an ambiguity
+- TODAY'S DATE is : {{__today__}}. Use this as the reference for all relative date calculations
 
 Examples:
-- "yesterday" → convert to YYYY-MM-DD
+- "yesterday" → get whats yesterdays date (today - 1) is and convert to YYYY-MM-DD
+- "yesterday" → get whats day before yesterdays date (today - 2) is and convert to YYYY-MM-DD
+- "last week" → This is ambigious, and ask for a date.
 - "me and my wife" → extract parties
 - "rear-ended" → infer collision
 
